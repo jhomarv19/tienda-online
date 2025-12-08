@@ -1,0 +1,15 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "dependabot/pip/pip-b6df1a1e09",
+    "main"
+  ],
+  "parent": {
+    "dependabot/pip/pip-b6df1a1e09": "main",
+    "main": null
+  },
+  "order": [
+    "main",
+    "dependabot/pip/pip-b6df1a1e09"
+  ]
+}
