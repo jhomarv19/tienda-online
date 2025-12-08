@@ -6,7 +6,7 @@ import uuid
 import os
 
 app = Flask(__name__)
-app.secret_key = 'clave_secreta_tienda_online'
+app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_tienda_online')
 DATABASE = 'tienda.db'
 
 # Función para obtener conexión a la base de datos
@@ -15,19 +15,111 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-# Inicializar sesión si no existe
+# Función para inicializar la base de datos
+def init_db():
+    """Inicializar la base de datos si no existe o las tablas no están creadas"""
+    print("=== INICIALIZANDO BASE DE DATOS ===")
+    
+    try:
+        # Verificar si la base de datos ya existe
+        db_exists = os.path.exists(DATABASE)
+        print(f"Base de datos existe: {db_exists}")
+        
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
+        
+        if not db_exists:
+            print("Creando base de datos desde cero...")
+        else:
+            print("Base de datos ya existe, verificando tablas...")
+        
+        # Leer y ejecutar el archivo schema.sql
+        try:
+            with open('schema.sql', 'r') as f:
+                schema_sql = f.read()
+            
+            cursor.executescript(schema_sql)
+            conn.commit()
+            print("Esquema SQL ejecutado correctamente")
+            
+        except FileNotFoundError:
+            print("ERROR: Archivo schema.sql no encontrado")
+            return False
+        
+        # Verificar si la tabla products tiene datos
+        cursor.execute("SELECT COUNT(*) as count FROM products")
+        count_result = cursor.fetchone()
+        product_count = count_result['count'] if isinstance(count_result, dict) else count_result[0]
+        
+        if product_count == 0:
+            print("Insertando productos de ejemplo...")
+            # Insertar algunos productos de ejemplo
+            productos_ejemplo = [
+                ('Laptop Gamer', 'Laptop de alto rendimiento para gaming', 1200.00, 10, 'https://via.placeholder.com/200x150?text=Laptop'),
+                ('Mouse Inalámbrico', 'Mouse ergonómico con conectividad Bluetooth', 25.50, 50, 'https://via.placeholder.com/200x150?text=Mouse'),
+                ('Teclado Mecánico', 'Teclado mecánico con retroiluminación RGB', 89.99, 30, 'https://via.placeholder.com/200x150?text=Teclado'),
+                ('Monitor 24"', 'Monitor Full HD 144Hz', 199.99, 15, 'https://via.placeholder.com/200x150?text=Monitor'),
+                ('Auriculares', 'Auriculares con cancelación de ruido', 75.00, 25, 'https://via.placeholder.com/200x150?text=Auriculares')
+            ]
+            
+            for producto in productos_ejemplo:
+                cursor.execute('INSERT INTO products (name, description, price, stock, image_url) VALUES (?, ?, ?, ?, ?)', producto)
+            
+            conn.commit()
+            print("Productos de ejemplo insertados")
+        else:
+            print(f"Base de datos ya tiene {product_count} productos")
+        
+        conn.close()
+        print("=== BASE DE DATOS INICIALIZADA CORRECTAMENTE ===")
+        return True
+        
+    except Exception as e:
+        print(f"ERROR inicializando base de datos: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+# Decorador para asegurar que la base de datos esté inicializada antes de cada petición
 @app.before_request
 def before_request():
+    # Inicializar sesión si no existe
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
+    
+    # Verificar e inicializar base de datos si es necesario
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='products'")
+        table_exists = cursor.fetchone()
+        conn.close()
+        
+        if not table_exists:
+            print("Tabla 'products' no encontrada, inicializando...")
+            init_db()
+    except Exception as e:
+        print(f"Error verificando base de datos: {e}")
+        init_db()
 
 # Página principal - Catálogo de productos
 @app.route('/')
 def index():
-    conn = get_db()
-    products = conn.execute('SELECT * FROM products WHERE stock > 0').fetchall()
-    conn.close()
-    return render_template('index.html', products=products)
+    try:
+        conn = get_db()
+        products = conn.execute('SELECT * FROM products WHERE stock > 0').fetchall()
+        conn.close()
+        return render_template('index.html', products=products)
+    except sqlite3.OperationalError as e:
+        print(f"Error en /: {e}")
+        # Intentar reinicializar
+        if init_db():
+            # Intentar nuevamente
+            conn = get_db()
+            products = conn.execute('SELECT * FROM products WHERE stock > 0').fetchall()
+            conn.close()
+            return render_template('index.html', products=products)
+        return render_template('index.html', products=[])
 
 # Página de administración de productos
 @app.route('/admin')
@@ -323,22 +415,28 @@ def checkout():
 def cart_page():
     return render_template('cart.html')
 
-## Ejecución de la aplicación local 
-# if __name__ == '__main__':
-#     # Inicializar base de datos si no existe
-#     if not os.path.exists(DATABASE):
-#         import database
-#         database.init_db()
-#         print("Base de datos inicializada con datos de ejemplo")
-    
-#     app.run(debug=True, port=5000)
+# Ruta de verificación de salud
+@app.route('/health')
+def health_check():
+    try:
+        conn = get_db()
+        conn.execute('SELECT 1')
+        conn.close()
+        return jsonify({'status': 'healthy', 'database': 'connected'})
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
 
+# Inicializar la aplicación
+def create_app():
+    # Inicializar la base de datos al crear la aplicación
+    print("Creando aplicación Flask...")
+    if init_db():
+        print("Aplicación creada correctamente")
+    else:
+        print("Advertencia: No se pudo inicializar la base de datos")
+    return app
+
+# Solo un bloque if __name__ == '__main__' al final
 if __name__ == '__main__':
-    # Inicializar base de datos si no existe
-    if not os.path.exists(DATABASE):
-        import database
-        database.init_db()
-        print("Base de datos inicializada con datos de ejemplo")
-    
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=True)
