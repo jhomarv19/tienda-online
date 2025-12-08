@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero">
+    <h1>Bienvenido a nuestra tienda</h1>
+    <p>Encuentra los mejores productos al mejor precio</p>
+</div>
+
+<div class="filters">
+    <h2>Catálogo de Productos</h2>
+</div>
+
+<div class="products-grid" id="products-container">
+    {% for product in products %}
+    <div class="product-card">
+        <div class="product-image">
+            <img src="{{ product['image_url'] or 'https://via.placeholder.com/200x150?text=Producto' }}" alt="{{ product['name'] }}">
+        </div>
+        <div class="product-info">
+            <h3 class="product-title">{{ product['name'] }}</h3>
+            <p class="product-description">{{ product['description'] or 'Sin descripción' }}</p>
+            <div class="product-details">
+                <span class="product-price">${{ "%.2f"|format(product['price']) }}</span>
+                <span class="product-stock {% if product['stock'] > 10 %}in-stock{% elif product['stock'] > 0 %}low-stock{% else %}out-stock{% endif %}">
+                    {% if product['stock'] > 10 %}
+                        Disponible
+                    {% elif product['stock'] > 0 %}
+                        Solo {{ product['stock'] }} unidades
+                    {% else %}
+                        Agotado
+                    {% endif %}
+                </span>
+            </div>
+            {% if product['stock'] > 0 %}
+            <div class="product-actions">
+                <input type="number" id="qty-{{ product['id'] }}" min="1" max="{{ product['stock'] }}" value="1" class="quantity-input">
+                <button class="btn-add-cart" onclick="addToCart({{ product['id'] }})">
+                    <i class="fas fa-cart-plus"></i> Agregar
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

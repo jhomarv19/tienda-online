@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="cart-header">
+    <h1><i class="fas fa-shopping-cart"></i> Mi Carrito</h1>
+</div>
+
+<div class="cart-container">
+    <div class="cart-items" id="cart-items-container">
+        <!-- Los items del carrito se cargarán aquí con JavaScript -->
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i> Cargando carrito...
+        </div>
+    </div>
+    
+    <div class="cart-summary">
+        <h2>Resumen de Compra</h2>
+        <div class="summary-details">
+            <div class="summary-row">
+                <span>Subtotal:</span>
+                <span id="cart-subtotal">$0.00</span>
+            </div>
+            <div class="summary-row">
+                <span>Envío:</span>
+                <span id="cart-shipping">Gratis</span>
+            </div>
+            <div class="summary-row total">
+                <span>Total:</span>
+                <span id="cart-total">$0.00</span>
+            </div>
+        </div>
+        <button class="btn-checkout" id="checkout-btn" onclick="checkout()">
+            <i class="fas fa-check-circle"></i> Finalizar Compra
+        </button>
+        <p class="cart-empty-message" id="cart-empty-message" style="display: none;">
+            Tu carrito está vacío. <a href="{{ url_for('index') }}">¡Empieza a comprar!</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
