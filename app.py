@@ -323,16 +323,6 @@ def checkout():
 def cart_page():
     return render_template('cart.html')
 
-# Ejecución de la aplicación local 
-if __name__ == '__main__':
-    # Inicializar base de datos si no existe
-    if not os.path.exists(DATABASE):
-        import database
-        database.init_db()
-        print("Base de datos inicializada con datos de ejemplo")
-    
-    app.run(debug=True, port=5000)
-
 if __name__ == '__main__':
     # Inicializar base de datos si no existe
     if not os.path.exists(DATABASE):
